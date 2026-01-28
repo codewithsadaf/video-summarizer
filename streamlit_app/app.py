@@ -113,12 +113,10 @@ with left:
 
 with right:
     st.subheader("🤖 AI Agent")
-
     if not st.session_state.plain_transcript:
         st.info("Transcript required for AI chat")
         st.stop()
 
-    # Default prompts
     col1, col2, col3 = st.columns(3)
 
     def ask_ai(prompt):
@@ -152,18 +150,25 @@ with right:
 
     with col3:
         if st.button("❓ Quiz"):
-            ask_ai(
-                "Create 5 MCQs from this video. Provide answers at the end."
-            )
+            ask_ai("Create 5 MCQs from this video. Provide answers at the end.")
 
-    user_prompt = st.text_input("Ask something about the video")
+    for i in range(0, len(st.session_state.chat), 2):
+        user_msg = st.session_state.chat[i][1]
+        ai_msg = st.session_state.chat[i + 1][1]
 
-    if st.button("Ask"):
-        if user_prompt:
+        expanded = (i >= len(st.session_state.chat) - 2)
+
+        with st.expander(f"💬 {user_msg}", expanded=expanded):
+            st.markdown(f"**AI:** {ai_msg}")
+
+    if len(st.session_state.chat) == 0:
+        form_location = st
+    else:
+        form_location = st.empty()
+
+    with form_location.form("user_prompt_form", clear_on_submit=True):
+        user_prompt = st.text_input("Ask anything about the video")
+        submitted = st.form_submit_button("Ask")
+        if submitted and user_prompt:
             ask_ai(user_prompt)
 
-    for role, msg in st.session_state.chat:
-        if role == "user":
-            st.markdown(f"**You:** {msg}")
-        else:
-            st.markdown(f"**AI:** {msg}")
