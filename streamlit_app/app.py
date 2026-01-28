@@ -117,7 +117,7 @@ with right:
         st.info("Transcript required for AI chat")
         st.stop()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     def ask_ai(prompt):
         messages = [
@@ -151,6 +151,13 @@ with right:
     with col3:
         if st.button("❓ Quiz"):
             ask_ai("Create 5 MCQs from this video. Provide answers at the end.")
+            
+    with col4:
+        if st.button("📊 Presentation"):
+            ask_ai(
+                "Prepare a slide-wise presentation outline of this video transcript. "
+                "Use bullet points for each slide."
+            )
 
     for i in range(0, len(st.session_state.chat), 2):
         user_msg = st.session_state.chat[i][1]
