@@ -85,13 +85,29 @@ with left:
                 st.session_state.plain_transcript,
                 height=400
             )
+            st.download_button(
+                "⬇️ Download Transcript",
+                data=st.session_state.plain_transcript,
+                file_name="transcript.txt",
+                mime="text/plain"
+            )
 
         with tabs[1]:
+            timestamped_text = []
             for chunk in st.session_state.transcript_chunks:
                 sec = chunk.offset // 1000
-                st.markdown(
-                    f"**[{sec//60:02d}:{sec%60:02d}]** {chunk.text}"
-                )
+                ts_line = f"[{sec//60:02d}:{sec%60:02d}] {chunk.text}"
+                timestamped_text.append(ts_line)
+                st.markdown(ts_line)
+
+            st.download_button(
+                "⬇️ Download Subtitles",
+                data="\n".join(timestamped_text),
+                file_name="subtitles.txt",
+                mime="text/plain"
+            )
+
+            
     else:
         st.info("Fetch a transcript to view it here")
 
