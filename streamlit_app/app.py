@@ -4,7 +4,7 @@ AI Video Summarizer Streamlit App
 Features:
 - Fetches transcript from YouTube videos using Supadata.
 - Summarizes video content using OpenAI.
-- Allows AI chat on the video transcript for questionns, summaries, main ideas and quizzes.
+- Allows AI chat on the video transcript for questions, summaries, main ideas and quizzes.
 """
 import streamlit as st
 import os
@@ -35,6 +35,41 @@ if "plain_transcript" not in st.session_state:
 if "chat" not in st.session_state:
     st.session_state.chat = []
 
+if "processing" not in st.session_state:
+    st.session_state.processing = False
+
+if "pending_prompt" not in st.session_state:
+    st.session_state.pending_prompt = None
+
+def ask_ai(prompt):
+    """Process AI request and add to chat history"""
+    messages = [
+        {
+            "role": "system",
+            "content": "You are an AI assistant helping analyze a video transcript."
+        },
+        {
+            "role": "user",
+            "content": f"Transcript:\n{st.session_state.plain_transcript}\n\n{prompt}"
+        }
+    ]
+
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages
+    )
+
+    answer = response.choices[0].message.content
+    st.session_state.chat.append(("user", prompt))
+    st.session_state.chat.append(("assistant", answer))
+    st.session_state.processing = False
+    st.session_state.pending_prompt = None
+
+if st.session_state.pending_prompt and st.session_state.plain_transcript:
+    with st.spinner("Processing..."):
+        ask_ai(st.session_state.pending_prompt)
+
+# Video URL input
 video_url = st.text_input(
     "YouTube / Video URL",
     placeholder="https://www.youtube.com/watch?v=..."
@@ -69,21 +104,23 @@ if st.button("Fetch Transcript"):
         st.session_state.plain_transcript = " ".join(
             [c.text for c in result.content]
         )
+        st.session_state.chat = []  
 
         st.success("Transcript ready!")
 
-left, right = st.columns([1.2, 1])
+if st.session_state.transcript_chunks:
+    left, right = st.columns([1.2, 1])
 
-with left:
-    st.subheader("📜 Transcript")
-
-    if st.session_state.transcript_chunks:
+    with left:
+        st.subheader("📜 Transcript")
+        
         tabs = st.tabs(["Transcript", "Subtitles"])
         with tabs[0]:
             st.text_area(
                 "",
                 st.session_state.plain_transcript,
-                height=400
+                height=400,
+                key="transcript_display"
             )
             st.download_button(
                 "⬇️ Download Transcript",
@@ -107,75 +144,60 @@ with left:
                 mime="text/plain"
             )
 
-            
-    else:
-        st.info("Fetch a transcript to view it here")
+    with right:
+        st.subheader("🤖 AI Agent")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if st.button("📝 Summary", key="btn_summary", disabled=st.session_state.processing):
+                st.session_state.processing = True
+                st.session_state.pending_prompt = "Give a concise summary of this video."
+                st.rerun()
 
-with right:
-    st.subheader("🤖 AI Agent")
-    if not st.session_state.plain_transcript:
-        st.info("Transcript required for AI chat")
-        st.stop()
+        with col2:
+            if st.button("🧠 Main Idea", key="btn_main", disabled=st.session_state.processing):
+                st.session_state.processing = True
+                st.session_state.pending_prompt = "Explain the main idea of this video."
+                st.rerun()
 
-    col1, col2, col3, col4 = st.columns(4)
+        with col3:
+            if st.button("❓ Quiz", key="btn_quiz", disabled=st.session_state.processing):
+                st.session_state.processing = True
+                st.session_state.pending_prompt = "Create 5 MCQs from this video. Provide answers at the end."
+                st.rerun()
+                
+        with col4:
+            if st.button("📊 Presentation", key="btn_presentation", disabled=st.session_state.processing):
+                st.session_state.processing = True
+                st.session_state.pending_prompt = "Prepare a slide-wise presentation outline of this video transcript. Use bullet points for each slide."
+                st.rerun()
 
-    def ask_ai(prompt):
-        messages = [
-            {
-                "role": "system",
-                "content": "You are an AI assistant helping analyze a video transcript."
-            },
-            {
-                "role": "user",
-                "content": f"Transcript:\n{st.session_state.plain_transcript}\n\n{prompt}"
-            }
-        ]
+        if st.session_state.chat:
+            st.markdown("---")
+            for i in range(0, len(st.session_state.chat), 2):
+                if i + 1 < len(st.session_state.chat):
+                    user_msg = st.session_state.chat[i][1]
+                    ai_msg = st.session_state.chat[i + 1][1]
 
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages
+                    expanded = (i >= len(st.session_state.chat) - 2)
+
+                    with st.expander(f"💬 {user_msg}", expanded=expanded):
+                        st.markdown(f"**AI:** {ai_msg}")
+
+        st.markdown("---")
+        user_input = st.text_input(
+            "Ask anything about the video",
+            key="user_question",
+            placeholder="Ask anything about the video...",
+            disabled=st.session_state.processing
         )
+        
+        if st.button("Ask", key="ask_button", disabled=st.session_state.processing or not user_input):
+            if user_input:
+                st.session_state.processing = True
+                st.session_state.pending_prompt = user_input
+                st.rerun()
 
-        answer = response.choices[0].message.content
-        st.session_state.chat.append(("user", prompt))
-        st.session_state.chat.append(("assistant", answer))
-
-    with col1:
-        if st.button("📝 Summary"):
-            ask_ai("Give a concise summary of this video.")
-
-    with col2:
-        if st.button("🧠 Main Idea"):
-            ask_ai("Explain the main idea of this video.")
-
-    with col3:
-        if st.button("❓ Quiz"):
-            ask_ai("Create 5 MCQs from this video. Provide answers at the end.")
-            
-    with col4:
-        if st.button("📊 Presentation"):
-            ask_ai(
-                "Prepare a slide-wise presentation outline of this video transcript. "
-                "Use bullet points for each slide."
-            )
-
-    for i in range(0, len(st.session_state.chat), 2):
-        user_msg = st.session_state.chat[i][1]
-        ai_msg = st.session_state.chat[i + 1][1]
-
-        expanded = (i >= len(st.session_state.chat) - 2)
-
-        with st.expander(f"💬 {user_msg}", expanded=expanded):
-            st.markdown(f"**AI:** {ai_msg}")
-
-    if len(st.session_state.chat) == 0:
-        form_location = st
-    else:
-        form_location = st.empty()
-
-    with form_location.form("user_prompt_form", clear_on_submit=True):
-        user_prompt = st.text_input("Ask anything about the video")
-        submitted = st.form_submit_button("Ask")
-        if submitted and user_prompt:
-            ask_ai(user_prompt)
-
+else:
+    st.info("👆 Fetch a transcript to get started")
