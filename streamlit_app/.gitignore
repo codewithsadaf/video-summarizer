@@ -2,5 +2,5 @@ venv/
 .env
 __pycache__/
 *.pyc
-rough.py
+rough*
 .DS_Store

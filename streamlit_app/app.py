@@ -433,9 +433,12 @@ if st.session_state.transcript_chunks:
                         st.markdown(f"**AI:** {ai_msg}")
 
         st.markdown("---")
+        if "chat_input_key" not in st.session_state:
+            st.session_state.chat_input_key = 0
+        
         user_input = st.text_input(
             "Ask anything about the video",
-            key="user_question",
+            key=f"user_question_{st.session_state.chat_input_key}",
             placeholder="Ask anything about the video...",
             disabled=st.session_state.processing
         )
@@ -444,6 +447,7 @@ if st.session_state.transcript_chunks:
             if user_input:
                 st.session_state.processing = True
                 st.session_state.pending_prompt = user_input
+                st.session_state.chat_input_key += 1
                 st.rerun()
 
 else:
