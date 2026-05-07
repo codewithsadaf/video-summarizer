@@ -1,0 +1,5 @@
+streamlit
+supadata
+python-dotenv
+openai
+graphviz
